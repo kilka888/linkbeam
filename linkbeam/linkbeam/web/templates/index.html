@@ -90,6 +90,25 @@
 
   </main>
 
+  <!-- ===================== MOBILE / QR HANDOFF ===================== -->
+  <section class="panel mobile-panel">
+    <div class="panel-head">
+      <h2>Телефон без LinkBeam</h2>
+      <span class="panel-sub">через QR-код, без установки приложения</span>
+    </div>
+    <div class="mobile-actions">
+      <button class="mobile-action-btn" id="sendToPhoneBtn">
+        <span class="mobile-action-icon">📤</span>
+        <span>Отправить файл на телефон</span>
+        <input type="file" id="phoneSendInput" hidden />
+      </button>
+      <button class="mobile-action-btn" id="receiveFromPhoneBtn">
+        <span class="mobile-action-icon">📥</span>
+        <span>Принять файл с телефона</span>
+      </button>
+    </div>
+  </section>
+
   <!-- ===================== HISTORY ===================== -->
   <section class="panel history-panel">
     <div class="panel-head">
@@ -106,6 +125,17 @@
     <div class="history-list" id="historyList"></div>
   </section>
 
+</div>
+
+<!-- ===================== QR HANDOFF MODAL ===================== -->
+<div class="modal-overlay" id="qrModalOverlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="qrModalClose" aria-label="Закрыть">✕</button>
+    <h3 id="qrModalTitle">Отсканируй камерой телефона</h3>
+    <div class="qr-wrap" id="qrWrap"></div>
+    <p class="qr-url" id="qrUrl"></p>
+    <p class="qr-status" id="qrStatus">ожидание…</p>
+  </div>
 </div>
 
 <template id="blipTemplate">

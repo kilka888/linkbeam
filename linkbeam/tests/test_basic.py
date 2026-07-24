@@ -11,8 +11,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def test_imports():
     for mod in ["linkbeam.config", "linkbeam.storage", "linkbeam.discovery",
-                "linkbeam.client", "linkbeam.server"]:
+                "linkbeam.client", "linkbeam.server", "linkbeam.mobile"]:
         importlib.import_module(mod)
+
+
+def test_mobile_qr_and_tokens(tmp_path):
+    from linkbeam import mobile
+
+    svg = mobile.make_qr_svg("http://192.168.1.5:47111/pickup/abc")
+    assert svg.startswith("<?xml")
+    assert "mm" not in svg  # fixed mm sizing stripped so CSS can scale it
+
+    f = tmp_path / "photo.jpg"
+    f.write_bytes(b"fake-jpeg-bytes")
+    token = mobile.create_pickup(str(f), "photo.jpg", f.stat().st_size)
+    entry = mobile.get(token)
+    assert entry["kind"] == "pickup"
+    assert entry["status"] == "waiting"
+    mobile.mark_status(token, "downloaded")
+    assert mobile.get(token)["status"] == "downloaded"
+
+    dtoken = mobile.create_dropoff()
+    dentry = mobile.get(dtoken)
+    assert dentry["kind"] == "dropoff"
+    mobile.mark_status(dtoken, "completed", filename="IMG.jpg")
+    assert mobile.get(dtoken)["filename"] == "IMG.jpg"
+
+    assert mobile.get("unknown-token") is None
 
 
 def test_peer_to_dict():

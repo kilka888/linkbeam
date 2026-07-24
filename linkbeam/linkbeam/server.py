@@ -17,10 +17,10 @@ import uuid
 from pathlib import Path
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request, send_file
 
-from . import client, storage
-from .discovery import DiscoveryService
+from . import client, mobile, storage
+from .discovery import DiscoveryService, local_ip
 
 WEB_DIR = Path(__file__).parent / "web"
 
@@ -338,4 +338,96 @@ def api_history():
 def api_history_clear():
     storage.clear_history()
     return jsonify({"ok": True})
+
+
+# ----------------------------------------------------------- mobile / QR ---
+# No app, no discovery needed on the other end — just a phone's camera and
+# browser. See linkbeam/mobile.py for the token model.
+
+def _phone_url(path: str) -> str:
+    cfg = _cfg()
+    return f"http://{local_ip()}:{cfg['port']}{path}"
+
+
+@app.post("/api/mobile/send-init")
+def api_mobile_send_init():
+    """PC has a file, wants to beam it to a phone: stash it and hand back a
+    QR code pointing at the download link."""
+    upload = request.files.get("file")
+    if not upload:
+        return jsonify({"error": "file is required"}), 400
+
+    tmp_fd, tmp_path = tempfile.mkstemp(prefix="linkbeam_pickup_")
+    os.close(tmp_fd)
+    upload.save(tmp_path)
+    size = os.path.getsize(tmp_path)
+
+    token = mobile.create_pickup(tmp_path, upload.filename or "file", size)
+    url = _phone_url(f"/pickup/{token}")
+    return jsonify({
+        "token": token,
+        "url": url,
+        "qr_svg": mobile.make_qr_svg(url),
+        "filename": upload.filename,
+        "size": size,
+    })
+
+
+@app.get("/pickup/<token>")
+def pickup(token):
+    entry = mobile.get(token)
+    if not entry or entry["kind"] != "pickup":
+        abort(404, "Эта ссылка недействительна или уже истекла.")
+    mobile.mark_status(token, "downloaded")
+    storage.add_entry("sent", "📱 Телефон (QR)", entry["filename"], entry["size"], "completed")
+    return send_file(entry["path"], as_attachment=True, download_name=entry["filename"])
+
+
+@app.post("/api/mobile/receive-init")
+def api_mobile_receive_init():
+    """PC wants a file from a phone: hand back a QR code pointing at a tiny
+    upload page, no file yet."""
+    token = mobile.create_dropoff()
+    url = _phone_url(f"/dropoff/{token}")
+    return jsonify({"token": token, "url": url, "qr_svg": mobile.make_qr_svg(url)})
+
+
+@app.get("/dropoff/<token>")
+def dropoff_page(token):
+    entry = mobile.get(token)
+    if not entry or entry["kind"] != "dropoff":
+        return render_template(
+            "mobile_dropoff.html", token=token, device_name=_cfg()["name"]
+        ), 404
+    return render_template("mobile_dropoff.html", token=token, device_name=_cfg()["name"])
+
+
+@app.post("/dropoff/<token>/upload")
+def dropoff_upload(token):
+    entry = mobile.get(token)
+    if not entry or entry["kind"] != "dropoff":
+        return jsonify({"error": "link expired"}), 410
+
+    upload = request.files.get("file")
+    if not upload:
+        return jsonify({"error": "file is required"}), 400
+
+    cfg = _cfg()
+    dest_dir = Path(cfg["receive_dir"])
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = _unique_path(dest_dir / (upload.filename or "phone-file"))
+    upload.save(dest_path)
+    size = dest_path.stat().st_size
+
+    mobile.mark_status(token, "completed", filename=upload.filename)
+    storage.add_entry("received", "📱 Телефон (QR)", upload.filename or "file", size, "completed")
+    return jsonify({"ok": True})
+
+
+@app.get("/api/mobile/status/<token>")
+def api_mobile_status(token):
+    entry = mobile.get(token)
+    if not entry:
+        return jsonify({"status": "expired"})
+    return jsonify({"status": entry["status"], "filename": entry.get("filename")})
 

@@ -13,6 +13,7 @@ dependencies = [
     "flask>=3.0",
     "zeroconf>=0.130",
     "requests>=2.31",
+    "qrcode>=7.4",
 ]
 
 [project.scripts]

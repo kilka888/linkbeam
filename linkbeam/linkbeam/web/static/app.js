@@ -321,6 +321,96 @@
     });
   }
 
+  // ------------------------------------------------------- mobile / QR ---
+
+  const qrModalOverlay = $("#qrModalOverlay");
+  const qrModalTitle = $("#qrModalTitle");
+  const qrWrap = $("#qrWrap");
+  const qrUrl = $("#qrUrl");
+  const qrStatus = $("#qrStatus");
+  let qrPollTimer = null;
+
+  function openQrModal(title, url, svg) {
+    qrModalTitle.textContent = title;
+    qrWrap.innerHTML = svg;
+    qrUrl.textContent = url;
+    qrStatus.textContent = "ожидание…";
+    qrStatus.className = "qr-status";
+    qrModalOverlay.hidden = false;
+  }
+
+  function closeQrModal() {
+    qrModalOverlay.hidden = true;
+    if (qrPollTimer) clearTimeout(qrPollTimer);
+  }
+
+  $("#qrModalClose").addEventListener("click", closeQrModal);
+  qrModalOverlay.addEventListener("click", (e) => {
+    if (e.target === qrModalOverlay) closeQrModal();
+  });
+
+  function pollMobileToken(token, { onDone, onDownloaded }) {
+    const tick = async () => {
+      try {
+        const s = await api(`/api/mobile/status/${token}`);
+        if (s.status === "downloaded" && onDownloaded) {
+          onDownloaded();
+          return; // pickup links can be re-downloaded, keep modal open briefly then stop
+        }
+        if (s.status === "completed") {
+          onDone(s);
+          return;
+        }
+        if (s.status === "expired") {
+          qrStatus.textContent = "Ссылка истекла";
+          qrStatus.className = "qr-status error";
+          return;
+        }
+      } catch (e) { /* ignore transient errors */ }
+      qrPollTimer = setTimeout(tick, 1500);
+    };
+    tick();
+  }
+
+  $("#sendToPhoneBtn").addEventListener("click", () => $("#phoneSendInput").click());
+
+  $("#phoneSendInput").addEventListener("change", async () => {
+    const file = $("#phoneSendInput").files[0];
+    $("#phoneSendInput").value = "";
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const data = await api("/api/mobile/send-init", { method: "POST", body: form });
+      openQrModal("Отсканируй, чтобы скачать файл", data.url, data.qr_svg);
+      pollMobileToken(data.token, {
+        onDownloaded: () => {
+          qrStatus.textContent = "Телефон скачивает файл ✓";
+        },
+        onDone: () => {},
+      });
+    } catch (err) {
+      alert(`Не удалось подготовить файл: ${err.message}`);
+    }
+  });
+
+  $("#receiveFromPhoneBtn").addEventListener("click", async () => {
+    try {
+      const data = await api("/api/mobile/receive-init", { method: "POST" });
+      openQrModal("Отсканируй, чтобы отправить файл", data.url, data.qr_svg);
+      pollMobileToken(data.token, {
+        onDone: (s) => {
+          qrStatus.textContent = `Получено: ${s.filename} ✓`;
+          loadHistory();
+          setTimeout(closeQrModal, 1800);
+        },
+      });
+    } catch (err) {
+      alert(`Не удалось создать ссылку: ${err.message}`);
+    }
+  });
+
   // --------------------------------------------------------------- init --
 
   async function init() {
@@ -334,3 +424,4 @@
 
   init();
 })();
+

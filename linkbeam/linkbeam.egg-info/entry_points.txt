@@ -1,0 +1,2 @@
+[console_scripts]
+linkbeam = linkbeam.__main__:main

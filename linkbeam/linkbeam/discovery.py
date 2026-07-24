@@ -37,7 +37,7 @@ class Peer:
         }
 
 
-def _local_ip() -> str:
+def local_ip() -> str:
     """Best-effort LAN IP without actually sending traffic anywhere."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -112,7 +112,7 @@ class DiscoveryService:
 
     def start(self) -> None:
         self._zc = Zeroconf(ip_version=IPVersion.V4Only)
-        ip = _local_ip()
+        ip = local_ip()
         self._info = ServiceInfo(
             SERVICE_TYPE,
             f"{self.device_id}.{SERVICE_TYPE}",

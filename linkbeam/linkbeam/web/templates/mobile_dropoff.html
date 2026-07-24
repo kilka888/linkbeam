@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LinkBeam · Отправить на {{ device_name }}</title>
+<link rel="icon" href="data:,">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14; --surface: #10161f; --surface-2: #171f2b; --border: #232e3d;
+    --text: #e7edf3; --text-muted: #8493a6; --signal: #45d6c4;
+    --signal-soft: rgba(69,214,196,0.14); --danger: #ff6b6b;
+    --font-display: 'Sora', ui-sans-serif, system-ui, sans-serif;
+    --font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  body {
+    min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 24px; text-align: center;
+  }
+  .brand { font-family: var(--font-display); font-weight: 700; font-size: 18px; margin-bottom: 4px; }
+  .brand span { color: var(--signal); }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 32px; }
+  .card {
+    width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 28px 22px;
+  }
+  .pick-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    width: 100%; padding: 34px 10px; border-radius: 14px; border: 1.5px dashed var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 15px; font-weight: 600;
+    cursor: pointer;
+  }
+  .pick-btn:active { border-color: var(--signal); background: var(--signal-soft); }
+  .pick-btn svg { color: var(--signal); }
+  input[type=file] { display: none; }
+  .filename { margin-top: 16px; font-size: 13.5px; color: var(--text-muted); word-break: break-all; }
+  .send-btn {
+    margin-top: 18px; width: 100%; padding: 14px; border: none; border-radius: 12px;
+    background: var(--signal); color: #05201c; font-weight: 700; font-size: 15px; cursor: pointer;
+  }
+  .send-btn:disabled { opacity: 0.4; }
+  .bar { margin-top: 16px; height: 6px; border-radius: 4px; background: var(--border); overflow: hidden; display: none; }
+  .bar-fill { height: 100%; width: 0%; background: var(--signal); transition: width .2s; }
+  .status { margin-top: 14px; font-size: 13.5px; color: var(--text-muted); min-height: 18px; }
+  .status.error { color: var(--danger); }
+  .status.ok { color: var(--signal); font-weight: 600; }
+  .done-icon { font-size: 40px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+  <div class="brand">🔗 Link<span>Beam</span></div>
+  <p class="subtitle">Отправить файл на «{{ device_name }}»</p>
+
+  <div class="card" id="card">
+    <label class="pick-btn" id="pickBtn">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0-12 4 4m-4-4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Выбрать фото или файл</span>
+      <input type="file" id="fileInput" />
+    </label>
+    <div class="filename" id="filename"></div>
+    <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
+    <button class="send-btn" id="sendBtn" disabled>Отправить</button>
+    <div class="status" id="status"></div>
+  </div>
+
+<script>
+  const token = {{ token|tojson }};
+  const fileInput = document.getElementById("fileInput");
+  const filenameEl = document.getElementById("filename");
+  const sendBtn = document.getElementById("sendBtn");
+  const statusEl = document.getElementById("status");
+  const bar = document.getElementById("bar");
+  const barFill = document.getElementById("barFill");
+  const card = document.getElementById("card");
+
+  let selectedFile = null;
+
+  fileInput.addEventListener("change", () => {
+    selectedFile = fileInput.files[0] || null;
+    filenameEl.textContent = selectedFile ? selectedFile.name : "";
+    sendBtn.disabled = !selectedFile;
+    statusEl.textContent = "";
+    statusEl.className = "status";
+  });
+
+  sendBtn.addEventListener("click", () => {
+    if (!selectedFile) return;
+    sendBtn.disabled = true;
+    bar.style.display = "block";
+    statusEl.textContent = "Отправка…";
+    statusEl.className = "status";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `/dropoff/${token}/upload`);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        barFill.style.width = `${Math.round((e.loaded / e.total) * 100)}%`;
+      }
+    });
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        card.innerHTML = `<div class="done-icon">✅</div><div class="status ok">Файл получен на «{{ device_name }}»</div>`;
+      } else {
+        statusEl.textContent = "Не получилось отправить. Попробуй ещё раз.";
+        statusEl.className = "status error";
+        sendBtn.disabled = false;
+      }
+    };
+    xhr.onerror = () => {
+      statusEl.textContent = "Нет связи с компьютером.";
+      statusEl.className = "status error";
+      sendBtn.disabled = false;
+    };
+    const form = new FormData();
+    form.append("file", selectedFile);
+    xhr.send(form);
+  });
+</script>
+</body>
+</html>
