@@ -48,8 +48,8 @@ LinkBeam находит другие ПК в твоей Wi-Fi/LAN-сети са�
 Нужен Python 3.9 или новее.
 
 ```bash
-git clone https://github.com/kilka888/linkbeam.git
-cd linkbeam
+git clone https://github.com/kilka888/linkbeam.git   # Если не работает, то просто установите linkbeam с этой страницы
+cd linkbeam   # Укажите путь до linkbeam
 pip install -r requirements.txt
 ```
 
