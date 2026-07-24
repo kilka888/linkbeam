@@ -49,7 +49,7 @@ LinkBeam находит другие ПК в твоей Wi-Fi/LAN-сети са�
 
 ```bash
 git clone https://github.com/kilka888/linkbeam.git   # Если не работает, то просто установите linkbeam с этой страницы
-cd linkbeam   # Укажите путь до папки linkbeam. Например, D:\linkbeam
+cd linkbeam   # Укажите путь до папки linkbeam. Например, cd D:\linkbeam
 pip install -r requirements.txt
 ```
 
