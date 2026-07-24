@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LinkBeam</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">LinkBeam</span>
+    </div>
+
+    <div class="identity" id="identity">
+      <button class="identity-edit" id="editNameBtn" title="Изменить имя устройства">
+        <span id="deviceName">device</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="identity-id" id="deviceId">····</span>
+    </div>
+
+    <div class="header-actions">
+      <label class="toggle" title="Принимать входящие файлы автоматически, без подтверждения">
+        <input type="checkbox" id="autoAccept" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="toggle-label">Автоприём</span>
+      </label>
+      <button class="ghost-btn" id="openFolderBtn">Папка приёма</button>
+    </div>
+  </header>
+
+  <!-- ================== INCOMING REQUESTS (toast stack) ================== -->
+  <div class="incoming-stack" id="incomingStack" aria-live="polite"></div>
+
+  <main class="layout">
+
+    <!-- ===================== RADAR / PEERS ===================== -->
+    <section class="panel radar-panel">
+      <div class="panel-head">
+        <h2>Устройства рядом</h2>
+        <span class="scan-status" id="scanStatus">поиск…</span>
+      </div>
+
+      <div class="radar" id="radar">
+        <div class="radar-ring ring-1"></div>
+        <div class="radar-ring ring-2"></div>
+        <div class="radar-ring ring-3"></div>
+        <div class="radar-sweep"></div>
+        <div class="radar-core"></div>
+        <div class="radar-blips" id="radarBlips"></div>
+      </div>
+
+      <p class="empty-hint" id="emptyHint">Открой LinkBeam на другом ПК в этой же сети — он появится здесь сам.</p>
+
+      <details class="manual-peer">
+        <summary>Устройство не найдено? Подключиться по IP</summary>
+        <form id="manualPeerForm" class="manual-peer-form">
+          <input type="text" id="manualAddress" placeholder="192.168.1.23" required />
+          <input type="number" id="manualPort" placeholder="47111" required />
+          <button type="submit">Добавить</button>
+        </form>
+        <p class="manual-peer-hint">Полезно, если mDNS/multicast заблокирован файрволом или роутером.</p>
+      </details>
+    </section>
+
+    <!-- ===================== SEND PANEL ===================== -->
+    <section class="panel send-panel">
+      <div class="panel-head">
+        <h2>Отправить файл</h2>
+        <span class="selected-peer" id="selectedPeerLabel">выбери устройство слева</span>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" hidden />
+        <svg class="dropzone-icon" width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0-12 4 4m-4-4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <p><strong>Перетащи файл сюда</strong> или нажми, чтобы выбрать</p>
+      </div>
+
+      <div class="transfers" id="transfers"></div>
+    </section>
+
+  </main>
+
+  <!-- ===================== HISTORY ===================== -->
+  <section class="panel history-panel">
+    <div class="panel-head">
+      <h2>История</h2>
+      <div class="history-controls">
+        <div class="tabs" id="historyTabs">
+          <button class="tab active" data-filter="all">Все</button>
+          <button class="tab" data-filter="sent">Отправленные</button>
+          <button class="tab" data-filter="received">Полученные</button>
+        </div>
+        <button class="ghost-btn small" id="clearHistoryBtn">Очистить</button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </section>
+
+</div>
+
+<template id="blipTemplate">
+  <button class="blip">
+    <span class="blip-dot"></span>
+    <span class="blip-name"></span>
+  </button>
+</template>
+
+<template id="incomingTemplate">
+  <div class="incoming-card">
+    <div class="incoming-top">
+      <span class="incoming-title"></span>
+      <span class="incoming-code"></span>
+    </div>
+    <p class="incoming-detail"></p>
+    <div class="incoming-actions">
+      <button class="btn-decline">Отклонить</button>
+      <button class="btn-accept">Принять</button>
+    </div>
+  </div>
+</template>
+
+<template id="transferTemplate">
+  <div class="transfer-row">
+    <div class="transfer-info">
+      <span class="transfer-filename"></span>
+      <span class="transfer-peer"></span>
+    </div>
+    <div class="transfer-bar"><div class="transfer-bar-fill"></div></div>
+    <span class="transfer-status"></span>
+  </div>
+</template>
+
+<template id="historyItemTemplate">
+  <div class="history-item">
+    <span class="history-icon"></span>
+    <div class="history-main">
+      <span class="history-filename"></span>
+      <span class="history-meta"></span>
+    </div>
+    <span class="history-time"></span>
+  </div>
+</template>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

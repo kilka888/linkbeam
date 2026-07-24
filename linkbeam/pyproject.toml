@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkbeam"
+version = "1.0.0"
+description = "Zero-config peer-to-peer LAN file sharing — an open-source AirDrop for Windows, macOS and Linux."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "flask>=3.0",
+    "zeroconf>=0.130",
+    "requests>=2.31",
+]
+
+[project.scripts]
+linkbeam = "linkbeam.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["linkbeam*"]
+
+[tool.setuptools.package-data]
+linkbeam = ["web/templates/*", "web/static/*"]
