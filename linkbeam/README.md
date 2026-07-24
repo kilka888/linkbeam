@@ -1,3 +1,4 @@
+
 # 🔗 LinkBeam
 
 **Открытый, локальный, кроссплатформенный аналог AirDrop для Windows, macOS и Linux.**
@@ -47,8 +48,8 @@ LinkBeam находит другие ПК в твоей Wi-Fi/LAN-сети са�
 Нужен Python 3.9 или новее.
 
 ```bash
-git clone https://github.com/kilka888/linkbeam.git
-cd linkbeam
+git clone https://github.com/kilka888/linkbeam.git   # Если не работает, то просто установите linkbeam с этой страницы
+cd linkbeam   # Укажите путь до папки linkbeam. Например, cd D:\linkbeam
 pip install -r requirements.txt
 ```
 
@@ -165,6 +166,8 @@ sender                              receiver
 
 PR'ы приветствуются — это открытый проект, задумывался как основа, а не как
 готовый продукт «раз и навсегда».
+
+Поддержать проект: https://www.donationalerts.com/r/hmn_kilka или по реквезитам 2200 1513 2419 8493 (Альфа Банк)
 
 ## Лицензия
 
